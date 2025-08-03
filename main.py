@@ -10,7 +10,7 @@ import aiohttp
 import questionary
 from rich import box
 from rich.console import Console
-from rich.progress import BarColumn, Progress, SpinnerColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID
 from rich.table import Table
 from web3 import AsyncHTTPProvider, AsyncWeb3
 
@@ -139,7 +139,7 @@ async def get_balance_from_multicall(address: str, proxies: list[str]) -> dict:
 
 
 async def check_balances(
-    addresses: list[str], proxies: list[str], progress, task_id, max_concurrent: int = 20
+    addresses: list[str], proxies: list[str], progress: Progress, task_id: TaskID, max_concurrent: int = 20
 ) -> list[dict]:
     if not proxies:
         max_concurrent = 3
@@ -147,7 +147,7 @@ async def check_balances(
     semaphore = asyncio.Semaphore(max_concurrent)
     completed = 0
 
-    async def throttled_get_balance(address):
+    async def throttled_get_balance(address: str) -> dict:
         nonlocal completed
         async with semaphore:
             result = await get_balance_from_multicall(address, proxies)
