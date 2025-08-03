@@ -7,6 +7,7 @@ Proxy usage is recommended.
 
 ## Features ✨
 - Checks multiple addresses simultaneously
+- Batches balance calls into a single RPC request
 - Supports any EVM chain with a multicall contract deployed
 - Supports ERC-20 tokens
 - Shows USD values via Binance API
