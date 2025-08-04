@@ -18,6 +18,7 @@ from config import ERC20_ABI, MULTICALL_ABI, config
 
 # Constants
 console = Console()
+MAX_CONCURRENT = 20
 MIN_VALUE_TO_DISPLAY = 0.00001
 RETRY = 3
 
@@ -138,11 +139,8 @@ async def get_balance_from_multicall(address: str, proxies: list[str]) -> dict:
     return {"address": address, NATIVE_TOKEN: 0.0, **default_token_balances, "tx_count": int(0)}
 
 
-async def check_balances(
-    addresses: list[str], proxies: list[str], progress: Progress, task_id: TaskID, max_concurrent: int = 20
-) -> list[dict]:
-    if not proxies:
-        max_concurrent = 3
+async def check_balances(addresses: list[str], proxies: list[str], progress: Progress, task_id: TaskID) -> list[dict]:
+    max_concurrent = 3 if not proxies else MAX_CONCURRENT
 
     semaphore = asyncio.Semaphore(max_concurrent)
     completed = 0
