@@ -19,13 +19,13 @@ from config import ERC20_ABI, MULTICALL_ABI, config
 # Constants
 console = Console()
 MAX_CONCURRENT = 20
+MIN_CONCURRENT = 3
 MIN_VALUE_TO_DISPLAY = 0.00001
 RETRY = 3
 
 # Global state
 SELECTED_CHAIN = None
 NATIVE_TOKEN = None
-TOTAL_ETH = 0
 
 
 def read_file(path: str) -> list[str]:
@@ -129,7 +129,7 @@ async def get_balance_from_multicall(address: str, proxies: list[str]) -> dict:
                 "429" in str(e)
                 or "Too Many Requests" in str(e).lower()
                 or "call rate limit exhausted" in str(e).lower()
-            ):
+            ):  # For debugging
                 # console.print(f"Rate limit hit, retrying in {0.5 * (2 ** attempt)} sec\t{address}")
                 await asyncio.sleep(0.5 * (2**attempt))
                 continue
@@ -140,7 +140,7 @@ async def get_balance_from_multicall(address: str, proxies: list[str]) -> dict:
 
 
 async def check_balances(addresses: list[str], proxies: list[str], progress: Progress, task_id: TaskID) -> list[dict]:
-    max_concurrent = 3 if not proxies else MAX_CONCURRENT
+    max_concurrent = MIN_CONCURRENT if not proxies else MAX_CONCURRENT
 
     semaphore = asyncio.Semaphore(max_concurrent)
     completed = 0
@@ -169,23 +169,27 @@ def format_value(value: str | float | int) -> str | int:
 
 
 def print_table(results: list[dict], token_price: Decimal) -> None:
-    global TOTAL_ETH
-
     table = Table(box=box.ASCII_DOUBLE_HEAD, show_footer=True)
-
-    # Add headers and calculate totals
     headers = list(results[0].keys())
-    TOTAL_ETH += sum(entry[NATIVE_TOKEN] for entry in results if isinstance(entry[NATIVE_TOKEN], (int, float)))
 
+    # Calc totals
+    totals = {}
+    for header in headers:
+        if header not in ["address"]:
+            totals[header] = sum(entry[header] for entry in results if isinstance(entry[header], (int, float)))
+
+    # Add columns
     for header in headers:
         footer_text = ""
         if header == "address":
-            footer_text = "TOTAL"
-        elif header == NATIVE_TOKEN:
-            footer_text = f"{TOTAL_ETH:.6f}"
+            footer_text = "Total"
         elif header == "USD" and token_price:
-            total_usd = Decimal(str(TOTAL_ETH)) * token_price
-            footer_text = f"{total_usd:.2f}"
+            total_usd = Decimal(str(totals[NATIVE_TOKEN])) * token_price
+            footer_text = f"{total_usd:.2f}" if total_usd > 0 else ""
+        elif header == "tx_count":
+            footer_text = f"{int(totals[header])}" if totals[header] > 0 else ""
+        elif header in totals:
+            footer_text = f"{totals[header]:.6f}" if totals[header] > 0 else ""
 
         table.add_column(
             header, footer=footer_text, justify="right" if header != "address" else "left", footer_style="bold green"
